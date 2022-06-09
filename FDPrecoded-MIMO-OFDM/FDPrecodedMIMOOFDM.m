@@ -7,10 +7,11 @@ Rx=2; %Number of Receive Antenna
 L=4;  %Channel Length
 C=4;  %CP Length
 M=4;  %4-QAM
-N=64; %Block Size
+N=16; %Block Size
 P=N+C;
-Block_Num=Rx*10; %Number of Blocks
-Var_n=10; %Noise Variance
+Block_Num=Rx*5; %Number of Blocks
+SNR=100;
+Var_n=1/SNR; %Noise Variance
 Ps=10;%Total Power Constraint
 %% Mapping 
 Bits=randi(0:1,[1,N*Block_Num*log2(M)]);
@@ -33,10 +34,26 @@ end
 %Generate MIMO channel matrix, which is a concatenated 2 dimensional matrix
 DD=zeros(N*Rx,N*Tx);
 Channel=zeros(1,4,Tx,Rx);
+Ch=zeros(P,P,Tx,Rx);
 for i=1:Tx
     for j=1:Rx
         h=(1/sqrt(2*L))*(randn(1,L)+1i*randn(1,L));
         Channel(:,:,i,j)=h;
+        a=1;
+        H0=zeros(P);
+        while a<P+1  %generate the channel matrces
+            b=1;
+            while b<P+1
+                if a-b<0 || a-b>L-1
+                    H0(a,b)=0;
+                else
+                    H0(a,b)=h(a-b+1);
+                end
+                b=b+1;
+            end
+            a=a+1;
+        end
+        Ch(:,:,i,j)=H0;
         H=zeros(N+L-1,N);
         for k=1:N+L-1
             for m=1:N
@@ -97,7 +114,36 @@ for count=1:Block_Num
         Symbol4(:,:,i,count)=T*Symbol3(:,:,i,count);
     end
 end
-
+%% Channel 
+% Not even including the interference channel block because it goes to zero
+% anyway
+Symbol5=zeros(P,1,Rx,Block_Num);
+for count=1:Block_Num
+    for i=1:Rx
+        for j=1:Tx
+            Symbol5(:,:,i,count)=Symbol5(:,:,i,count)+Ch(:,:,j,i)*Symbol4(:,:,j,count);
+        end
+    end
+end
+%% Thermal Noise 
+Symbol6=zeros(P,1,Rx,Block_Num);
+for count=1:Block_Num
+    for i=1:Rx       
+        nr=randn(P,1);
+        ni=randn(P,1);
+        Noise=(1/sqrt(SNR))*(sqrt(2)/2)*(nr+1i*ni);
+        Symbol6(:,:,i,count)=Symbol5(:,:,1,count)+Noise;
+    end
+end
+%% Guard Removal
+R=[zeros(N,P-N),eye(N)];
+Symbol7=zeros(N,1,Rx,Block_Num);
+for count=1:Block_Num
+    for i=1:Rx
+        Symbol7(:,:,i,count)=R*Symbol6(:,:,i,count);
+    end
+end
+%% 
 
 
 
