@@ -67,7 +67,7 @@ Sum=trace(SS'*SS);
 a=sqrt(Sum/(Tx*N*Ps));
 TT=SS/a;
 %% Apply PreCoding Matrix
-Symbol2=zeros(Tx*N,N,Tx,Block_Num);
+Symbol2=zeros(Tx*N,1,Tx,Block_Num);
 for k=1:Block_Num
     for i=1:Tx
         for j=1:Rx
@@ -76,10 +76,18 @@ for k=1:Block_Num
     end
 end
 %% IFFT 
-IFFT2=zeros(Tx*N);
+IFFT2=zeros(N,Tx*N);
 for i=1:Tx
-    IFFT2(N*(i-1)+1:N*i,N*(i-1)+1:N*i)=IFFT;
+    IFFT2(1:N,N*(i-1)+1:N*i)=IFFT;
 end
+Symbol3=zeros(N,1,Tx,Block_Num);
+for count=1:Block_Num
+    for i=1:Tx
+        Symbol3(:,:,i,count)=IFFT2*Symbol2(:,:,i,count);
+    end
+end
+%% Cyclic Prefix 
+
 
 
 
