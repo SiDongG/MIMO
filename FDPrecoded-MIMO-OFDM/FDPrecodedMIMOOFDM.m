@@ -32,9 +32,11 @@ end
 %% Channel Precoding
 %Generate MIMO channel matrix, which is a concatenated 2 dimensional matrix
 DD=zeros(N*Rx,N*Tx);
+Channel=zeros(1,4,Tx,Rx);
 for i=1:Tx
     for j=1:Rx
         h=(1/sqrt(2*L))*(randn(1,L)+1i*randn(1,L));
+        Channel(:,:,i,j)=h;
         H=zeros(N+L-1,N);
         for k=1:N+L-1
             for m=1:N
@@ -87,8 +89,14 @@ for count=1:Block_Num
     end
 end
 %% Cyclic Prefix 
-
-
+S=eye(N);
+T=[S(2*N-P+1:N,:);S];
+Symbol4=zeros(P,1,Tx,Block_Num);
+for count=1:Block_Num
+    for i=1:Tx
+        Symbol4(:,:,i,count)=T*Symbol3(:,:,i,count);
+    end
+end
 
 
 
