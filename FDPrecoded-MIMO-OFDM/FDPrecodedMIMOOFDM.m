@@ -2,14 +2,14 @@
 clear; clc; close all;
 %% Parameter Initialization
 % Standard: MMSE Precoding, Complex Orthogonal STBC, 4QAM, TCSI
-Tx=3; %Number of Transmit Antenna
+Tx=2; %Number of Transmit Antenna
 Rx=2; %Number of Receive Antenna 
 L=4;  %Channel Length
 C=4;  %CP Length
 M=4;  %4-QAM
-N=16; %Block Size
+N=4; %Block Size
 P=N+C;
-Block_Num=Rx*5; %Number of Blocks
+Block_Num=Rx; %Number of Blocks
 SNR=100;
 Var_n=1/SNR; %Noise Variance
 Ps=10;%Total Power Constraint
@@ -90,7 +90,7 @@ Symbol2=zeros(Tx*N,1,Tx,Block_Num);
 for k=1:Block_Num
     for i=1:Tx
         for j=1:Rx
-            Symbol2(:,:,i,k)=Symbol2(:,:,i,k)+TT(:,N*(j-1)+1:N*j)*Symbol1(:,:,Block_Num);
+            Symbol2(:,:,i,k)=Symbol2(:,:,i,k)+TT(:,N*(j-1)+1:N*j)*Symbol1(:,:,k);
         end
     end
 end
@@ -132,7 +132,7 @@ for count=1:Block_Num
         nr=randn(P,1);
         ni=randn(P,1);
         Noise=(1/sqrt(SNR))*(sqrt(2)/2)*(nr+1i*ni);
-        Symbol6(:,:,i,count)=Symbol5(:,:,1,count)+Noise;
+        Symbol6(:,:,i,count)=Symbol5(:,:,i,count)+Noise;
     end
 end
 %% Guard Removal
@@ -143,7 +143,9 @@ for count=1:Block_Num
         Symbol7(:,:,i,count)=R*Symbol6(:,:,i,count);
     end
 end
-%% 
+%% Gain Control
+Symbol7=Symbol7*a;
+%% Demapping 
 
 
 
