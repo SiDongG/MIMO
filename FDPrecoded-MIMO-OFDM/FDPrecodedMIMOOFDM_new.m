@@ -25,7 +25,7 @@ end
 if M==4
     Bits3=qammod(Bits2,M)*sqrt(0.5);
 end
-%% Carrier-wise FFT
+%% Carrier-Wise FFT
 Symbol=reshape(Bits3,Tx*N,1,Block_Num);
 FFT=dftmtx(N)/sqrt(N);
 IFFT=conj(FFT);
@@ -33,11 +33,12 @@ Symbol1=zeros(size(Symbol));
 for count=1:Block_Num
     Symbol1(:,:,count)=[FFT*Symbol(1:N,:,count);FFT*Symbol(N+1:2*N,:,count)];
 end
-%% Channel Precoding
+%% Channel Precoding and Precoding Matrix
 %Generate MIMO channel matrix, which is a concatenated 2 dimensional matrix
 DD=zeros(N*Rx,N*Tx);
 Channel=zeros(1,4,Tx,Rx);
 H_bar=zeros(N*Tx,N*Rx);
+SS=zeros(N*Tx,N*Rx);
 for i=1:Tx
     for j=1:Rx
         h=(1/sqrt(2*L))*(randn(1,L)+1i*randn(1,L));
@@ -58,96 +59,40 @@ for i=1:Tx
         end
         H_bar(N*(i-1)+1:N*i,N*(j-1)+1:N*j)=R*H0*T*IFFT;
         H=zeros(N+L-1,N);
-        for k=1:N+L-1
+        for count=1:N+L-1
             for m=1:N
-                if k-m+1>L
-                    H(k,m)=0;
-                elseif k-m<0
-                    H(k,m)=0;
+                if count-m+1>L
+                    H(count,m)=0;
+                elseif count-m<0
+                    H(count,m)=0;
                 else
-                    H(k,m)=h(k-m+1);
+                    H(count,m)=h(count-m+1);
                 end
             end
         end
         H(1:L-1,:)=H(1:L-1,:)+H(N+1:N+L-1,:);
         H=H(1:N,:);
-        DD(N*(j-1)+1:N*j,N*(i-1)+1:N*i)=FFT*H*IFFT;
+        D=FFT*H*IFFT;
+        DD(N*(j-1)+1:N*j,N*(i-1)+1:N*i)=D;
+        SS(N*(j-1)+1:N*j,N*(i-1)+1:N*i)=inv(D'*D+Var_n/Ps*eye(N))*D';
     end
 end
-% %% Precoding Matrix 
-% SS=zeros(N*Tx,N*Rx);
-% SS=inv(DD'*DD+Var_n/Ps*eye(N*Tx))*DD';
-% %% Power Scaling Factor
-% sum=0;
-% for i=1:Tx*N
-%     for j=1:Rx*N
-%         sum=sum+abs(SS(i,j))^2;
-%     end
-% end
-% 
-% Sum=trace(SS'*SS);
-% a=sqrt(Sum/(Tx*N*Ps));
-% TT=SS/a;
-% %% Apply PreCoding Matrix
-% Symbol2=zeros(Tx*N,1,Tx,Block_Num);
-% for k=1:Block_Num
-%     for i=1:Tx
-%         for j=1:Rx
-%             Symbol2(:,:,i,k)=Symbol2(:,:,i,k)+TT(:,N*(j-1)+1:N*j)*Symbol1(:,:,k);
-%         end
-%     end
-% end
-% %% IFFT 
-% IFFT2=zeros(N,Tx*N);
-% for i=1:Tx
-%     IFFT2(1:N,N*(i-1)+1:N*i)=IFFT;
-% end
-% Symbol3=zeros(N,1,Tx,Block_Num);
-% for count=1:Block_Num
-%     for i=1:Tx
-%         Symbol3(:,:,i,count)=IFFT2*Symbol2(:,:,i,count);
-%     end
-% end
-% %% Cyclic Prefix 
-% S=eye(N);
-% T=[S(2*N-P+1:N,:);S];
-% Symbol4=zeros(P,1,Tx,Block_Num);
-% for count=1:Block_Num
-%     for i=1:Tx
-%         Symbol4(:,:,i,count)=T*Symbol3(:,:,i,count);
-%     end
-% end
-% %% Channel 
-% % Not even including the interference channel block because it goes to zero
-% % anyway
-% Symbol5=zeros(P,1,Rx,Block_Num);
-% for count=1:Block_Num
-%     for i=1:Rx
-%         for j=1:Tx
-%             Symbol5(:,:,i,count)=Symbol5(:,:,i,count)+Ch(:,:,j,i)*Symbol4(:,:,j,count);
-%         end
-%     end
-% end
-% %% Thermal Noise 
-% Symbol6=zeros(P,1,Rx,Block_Num);
-% for count=1:Block_Num
-%     for i=1:Rx       
-%         nr=randn(P,1);
-%         ni=randn(P,1);
-%         Noise=(1/sqrt(SNR))*(sqrt(2)/2)*(nr+1i*ni);
-%         Symbol6(:,:,i,count)=Symbol5(:,:,i,count)+Noise;
-%     end
-% end
-% %% Guard Removal
-% R=[zeros(N,P-N),eye(N)];
-% Symbol7=zeros(N,1,Rx,Block_Num);
-% for count=1:Block_Num
-%     for i=1:Rx
-%         Symbol7(:,:,i,count)=R*Symbol6(:,:,i,count);
-%     end
-% end
-% %% Gain Control
-% Symbol7=Symbol7*a;
+%% Power Scaling Factor
+Sum=trace(SS'*SS);
+a=sqrt(Sum/(Tx*N*Ps));
+TT=SS/a;
+%% Apply Precoding Matrix  
+Symbol2=zeros(Tx*N,1,Block_Num);
+for count=1:Block_Num
+    Symbol2(:,:,count)=TT*Symbol1(:,:,count);
+end
+%% Apply Channel 
+Symbol3=zeros(Tx*N,1,Block_Num);
+for count=1:Block_Num
+    Symbol3(:,:,count)=H_bar*Symbol2(:,:,count);
+end
+%% Gain Control
+Symbol3=Symbol3*a;
 %% Demapping 
 
 
